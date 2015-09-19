@@ -2,28 +2,33 @@
 
 #include "display.h"
 #include <Audio.h>
-#include <Adafruit_GFX.h>        // LCD Core graphics library
-//#include <Adafruit_QDTech.h>     // 1.8" TFT Module using Samsung S6D02A1 chip
-#include <Adafruit_S6D02A1.h> // Hardware-specific library
-//extern Adafruit_QDTech tft;
-extern Adafruit_S6D02A1 tft;
-
+#include "ILI9341_t3.h"
 extern AudioAnalyzeFFT256  myFFT;      // FFT for Spectrum Display
+
+#define TFT_DC      20
+#define TFT_CS      21
+#define TFT_RST    255  // 255 = unused, connect to 3.3V
+#define TFT_MOSI     7
+#define TFT_SCLK    14
+#define TFT_MISO    12
+ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC, TFT_RST, TFT_MOSI, TFT_SCLK, TFT_MISO);
 
 void setup_display(void) {
   
   // initialize the LCD display
-//  tft.init();
-  tft.initR(INITR_BLACKTAB);   // initialize a S6D02A1S chip, black tab
+  SPI.setMOSI(7);
+  SPI.setSCK(14);
+  tft.begin();
   tft.setRotation(1);
   tft.fillScreen(BLACK);
-  tft.setCursor(0, 115);
+  tft.setCursor(0, 220);
   tft.setTextColor(WHITE);
   tft.setTextWrap(true);
-  tft.print("Teensy SDR 1.1");
+  tft.setTextSize(2);
+  //tft.print("Teensy SDR -  F:");
   
   // Show mid screen tune position
-  tft.drawFastVLine(80, 0,60,RED);
+  tft.drawFastVLine(160, 0,100,RED);
 }
 
 // draw the spectrum display
@@ -39,36 +44,21 @@ void show_spectrum(void) {
   for (int16_t x=startx; x < endx; x+=2) 
   {
     int bar=abs(myFFT.output[x*8/10])/scale;
-    if (bar >60) bar=60;
+    if (bar >100) bar=100;
     if(x!=80)
     {
-       tft.drawFastVLine(x, 60-bar,bar, GREEN);
-       tft.drawFastVLine(x, 0, 60-bar, BLACK);    
+       //tft.drawFastVLine(x*2, 60-bar,bar, GREEN);
+       //tft.drawFastVLine(x*2, 0, 60-bar, BLACK); 
+
+       tft.fillRect(x*2,100-bar,4,bar,GREEN);
+       tft.fillRect(x*2,0,4,100-bar,BLACK);
+          
     }
   }
   startx+=16;
   if(startx >=160) startx=0;
 //digitalWrite(DEBUG_PIN,0); // 
 }
-
-/* old draw routine
-// draw the spectrum display
-
-void show_spectrum(void) {
-
-  int scale=1;
-  for (int16_t x=0; x < 160; x+=2) 
-  {
-    int bar=abs(myFFT.output[x*8/10])/scale;
-    if (bar >60) bar=60;
-    if(x!=80)
-    {
-       tft.drawFastVLine(x, 60-bar,bar, GREEN);
-       tft.drawFastVLine(x, 0, 60-bar, BLACK);    
-    }
-  }
-}
-*/
 
 void show_waterfall(void) {
   // experimental waterfall display for CW -
@@ -91,42 +81,46 @@ void show_waterfall(void) {
 
 // indicate filter bandwidth on spectrum display
 void show_bandwidth(int filtermode) { 
-  tft.drawFastHLine(0,61,160, BLACK); // erase old indicator
-  tft.drawFastHLine(0,62,160, BLACK); // erase old indicator 
+  tft.drawFastHLine(80,101,160, BLACK); // erase old indicator
+  tft.drawFastHLine(80,102,160, BLACK); // erase old indicator 
   
   switch (filtermode)	{
     case LSB_NARROW:
-      tft.drawFastHLine(72,61,6, RED);
-      tft.drawFastHLine(72,62,6, RED);
+      tft.drawFastHLine(72+74,101,12, RED);
+      tft.drawFastHLine(72+74,102,12, RED);
     break;
     case LSB_WIDE:
-      tft.drawFastHLine(61,61,20, RED);
-      tft.drawFastHLine(61,62,20, RED);
+      tft.drawFastHLine(61+60,101,40, RED);
+      tft.drawFastHLine(61+60,102,40, RED);
     break;
     case USB_NARROW:
-      tft.drawFastHLine(83,61,6, RED);
-      tft.drawFastHLine(83,62,6, RED);
+      tft.drawFastHLine(83+80,101,12, RED);
+      tft.drawFastHLine(83+80,102,12, RED);
     break;
     case USB_WIDE:
-      tft.drawFastHLine(80,61,20, RED);
-      tft.drawFastHLine(80,62,20, RED);
+      tft.drawFastHLine(80+80,101,40, RED);
+      tft.drawFastHLine(80+80,102,40, RED);
     break;
   }
 }  
 
+// show frequency step
+void show_steps(String name) {
+  tft.setTextColor(GREEN,BLACK); 
+  tft.setCursor(0, 220);
+  tft.print(name);
+}
 
 // show radio mode
 void show_radiomode(String mode) { 
-  tft.fillRect(125, 85, 30, 7, BLACK); // erase old string
-  tft.setTextColor(WHITE);
-  tft.setCursor(125, 85);
+  tft.setTextColor(GREEN,BLACK);
+  tft.setCursor(50, 200);
   tft.print(mode);
 }  
 
 void show_band(String bandname) {  // show band
-  tft.fillRect(100, 85, 19, 7, BLACK); // erase old string
-  tft.setTextColor(WHITE);
-  tft.setCursor(100, 85);
+  tft.setTextColor(YELLOW,BLACK);
+  tft.setCursor(0, 200);
   tft.print(bandname);
 }
 
@@ -135,8 +129,12 @@ void show_frequency(long int freq) {
     char string[80];   // print format stuff
     sprintf(string,"%d.%03d.%03d",freq/1000000,(freq-freq/1000000*1000000)/1000,
           freq%1000 );
-    tft.fillRect(100,115,100,120,BLACK);
-    tft.setCursor(100, 115);
-    tft.setTextColor(WHITE);
-    tft.print(string); 
+    tft.setCursor(140, 210);
+    tft.setTextColor(WHITE,BLACK);
+    tft.setTextSize(3);
+    tft.print(string);
+    tft.setTextSize(2); 
 }    
+
+
+

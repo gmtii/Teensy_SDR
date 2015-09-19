@@ -36,3 +36,31 @@ TODO:
 
 project blog: rheslip.blogspot.com
 
+----
+
+gmtii notes: 
+
+I've modified the original pinout to get the ILI9341 working with the optimized ILI9341_t3 library and to drive the Softrock RX III ABPF using the SEL0 and SEL1 control lines; remove the ATTiny85 and solder an empty dip socket with wires to the teensy.
+
+- SW1 - relocated to pin D2
+- SW2 - relocated to pin D3
+
+SoftRock ABPF control lines:
+
+- SEL0 - Teensy pin D0 -> ATTiny85 pin 3
+- SEL1 - Teensy pin D1 -> ATTiny85 pin 1
+
+SoftRock SI570 (Added the si570 library from the RAdiono project to the Library directory):
+
+- Teensy SDA ->  ATTiny85 pin 6 
+- Teensy SCL ->  ATTiny85 pin 2 
+
+ILI9341 pinout:
+
+- TFT_DC      D20
+- TFT_CS      D21
+- TFT_RST     255  // 255 = unused, connect to 3.3V
+- TFT_MOSI     D7
+- TFT_SCLK    D14
+- TFT_MISO    D12
+
