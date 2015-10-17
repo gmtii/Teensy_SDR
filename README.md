@@ -40,4 +40,8 @@ gmtii notes:
 
 adapted code for the QSD kit soft66lite, si5351 vfo instead fixed crystal and ili9341 display.
 
+![Alt text](./screenshot.jpg?raw=true "Screenshot")
+
+
+
 
