@@ -168,47 +168,22 @@ void setup_display(void) {
 void show_spectrum(void) {
   static int startx = 0, endx;
   endx = startx + 16;
-  int scale = 1;
-  //digitalWrite(DEBUG_PIN,1); // for timing measurements
-
+  int scale = 2;
+  
   for (int16_t x = startx; x < endx; x += 2)
   {
     int bar = abs(myFFT.output[x * 8 / 10]) / scale;
-    if (bar > 80) bar = 100;
+    if (bar > 100) bar = 100;
     if (x != 80)
     {
-      //tft.drawFastVLine(x*2, 60-bar,bar, GREEN);
-      //tft.drawFastVLine(x*2, 0, 60-bar, BLACK);
-
-      tft.fillRect(x * 2, 100 - bar, 4, bar, CYAN);
-      tft.fillRect(x * 2, 0, 4, 100 - bar, BLACK);
-
+      tft.fillRect(x * 2, 100 - bar, 3, bar, CYAN);
+      tft.fillRect(x * 2, 0, 3, 100 - bar, BLACK);
     }
   }
   startx += 16;
   if (startx >= 160) startx = 0;
-  //digitalWrite(DEBUG_PIN,0); //
-}
 
-void show_waterfall_cw(void) {
-  // experimental waterfall display for CW -
-  // this should probably be on a faster timer since it needs to run as fast as possible to catch CW edges
-  //  FFT bins are 22khz/128=171hz wide
-  // cw peak should be around 11.6khz -
-  static uint16_t waterfall[80];  // array for simple waterfall display
-  static uint8_t w_index = 0, w_avg;
-  waterfall[w_index] = 0;
-  for (uint8_t y = 66; y < 67; ++y) // sum of bin powers near cursor - usb only
-    waterfall[w_index] += (uint8_t)(abs(myFFT.output[y])); // store bin power readings in circular buffer
-  waterfall[w_index] |= (waterfall[w_index] << 5 | waterfall[w_index] << 11); // make it colorful
-  int8_t p = w_index;
-  for (uint8_t x = 80; x > 0; x -= 1) {
-    tft.fillRect(160, 200 - x, 2, 4, waterfall[p]);
-    if (--p < 0 ) p = 79;
-  }
-  if (++w_index >= 80) w_index = 0;
 }
-
 
 void show_waterfall(void) {
 
@@ -225,7 +200,7 @@ void show_waterfall(void) {
     for (uint8_t y = xx * 2; y < (xx * 2 + 1); y++)               // sum of bin powers near cursor - usb only
       waterfall[xx][w_index] += (uint8_t)(abs(myFFT.output[y]));  // store bin power readings in circular buffer
 
-    uint8_t value = map(waterfall[xx][w_index], 0, 150, 0, 89);
+    uint8_t value = map(waterfall[xx][w_index], 0, 200, 0, 89);
     waterfall[xx][w_index] = gradient[value];
 
     int8_t p = w_index;
@@ -244,32 +219,76 @@ void show_waterfall(void) {
 
 // indicate filter bandwidth on spectrum display
 void show_bandwidth(int filtermode) {
-  //tft.drawFastHLine(80, 101, 160, BLACK); // erase old indicator
-  //tft.drawFastHLine(80, 102, 160, BLACK); // erase old indicator
-  tft.fillRect(120, 101, 80, 4, BLACK);
+
+  tft.fillRect(0, 101, 319, 4, BLACK);
+  tft.setTextSize(1);
+  tft.setCursor(0, 210);
+  tft.setTextColor(GREEN, BLACK);
 
   switch (filtermode)	{
+
     case LSB_NARROW:
-      //tft.drawFastHLine(72 + 74, 101, 12, RED);
-      //tft.drawFastHLine(72 + 74, 102, 12, RED);
-      tft.fillRect(146, 101, 12, 4, RED);
+
+      tft.fillRect(146, 101, 15, 4, RED);
+
+      tft.print("BW: 700 Hz ");
       break;
+
     case LSB_WIDE:
-      //tft.drawFastHLine(61 + 60, 101, 40, RED);
-      //tft.drawFastHLine(61 + 60, 102, 40, RED);
+
       tft.fillRect(121, 101, 40, 4, RED);
+      tft.print("BW: 2.7 kHz");
       break;
+
     case USB_NARROW:
-      //tft.drawFastHLine(83 + 80, 101, 12, RED);
-      //tft.drawFastHLine(83 + 80, 102, 12, RED);
-      tft.fillRect(163, 101, 12, 4, RED);
+
+      tft.fillRect(160, 101, 15, 4, RED);
+      tft.print("BW: 700 Hz ");
       break;
+
     case USB_WIDE:
-      //tft.drawFastHLine(80 + 80, 101, 40, RED);
-      //tft.drawFastHLine(80 + 80, 102, 40, RED);
+
       tft.fillRect(160, 101, 40, 4, RED);
+      tft.print("BW: 2.7 kHz");
       break;
+
+    case DSB:
+
+      tft.fillRect(121, 101, 80, 4, RED);
+      tft.print("BW: 5.4 kHz");
+
+      break;
+
+    case USB_3700:
+
+      tft.fillRect(160, 101, 110, 4, RED);
+      tft.print("BW: 3.7 kHz");
+      break;
+
+    case USB_1700:
+
+      tft.fillRect(160, 101, 36, 4, RED);
+      tft.print("BW: 1.7 kHz");
+      break;
+
+    case LSB_3700:
+
+      tft.fillRect(51, 101, 110, 4, RED);
+      tft.print("BW: 3.7 kHz");
+      break;
+
+    case LSB_1700:
+
+      tft.fillRect(125, 101, 36, 4, RED);
+      tft.print("BW: 1.7 kHz");
+      break;
+
+
+
+
+
   }
+  tft.setTextSize(2);
 }
 
 // show frequency step
@@ -285,7 +304,7 @@ void show_steps(String name) {
 void show_radiomode(String mode) {
   tft.setTextSize(1);
   tft.setTextColor(GREEN, BLACK);
-  tft.setCursor(0, 200);
+  tft.setCursor(170, 200);
   tft.print(mode);
   tft.setTextSize(2);
 }
@@ -310,7 +329,7 @@ void show_frequency(long int freq) {
             freq % 1000 );
 
   //tft.setFont(Arial_28);
-  tft.setCursor(0, 220);
+  tft.setCursor(200, 220);
   tft.setTextColor(WHITE, BLACK);
   tft.setTextSize(2);
   tft.print(string);

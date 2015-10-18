@@ -20,6 +20,10 @@ short firbpf_usb[BPF_COEFFS] = {
 #include "fir_usb.h" 
 };
 
+short firbpf_dsb[BPF_COEFFS] = {
+#include "fir_dsb.h" 
+};
+
 short firbpf_lsb[BPF_COEFFS] = {
 #include "fir_lsb.h" 
 };
@@ -32,5 +36,11 @@ short postfir_lpf[COEFF_LPF] = {
 #include "postfir_lpf.h" 
 };
 
+short postfir_1700hz[55] = {
+#include "postfir_1700hz.h" 
+};
 
+short postfir_3700hz[57] = {
+#include "postfir_3700hz.h" 
+};
 

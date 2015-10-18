@@ -199,14 +199,19 @@ Metro lcd_upd = Metro(10); // Set up a Metro for LCD updates
 Metro CW_sample = Metro(50); // Set up a Metro for LCD updates
 
 #ifdef CW_WATERFALL
-Metro waterfall_upd = Metro(400); // Set up a Metro for waterfall updates
+Metro waterfall_upd = Metro(200); // Set up a Metro for waterfall updates
 #endif
 
 // radio operation mode defines used for filter selections etc
-#define  SSB_USB  0
-#define  SSB_LSB  1
-#define  CW       2
-#define  CWR      3
+#define  SSB_USB    0
+#define  SSB_LSB    1
+#define  CW         2
+#define  CWR        3
+#define  SSB_DSB    4
+#define  SSB_USB_N  5
+#define  SSB_LSB_N  6
+#define  SSB_USB_W  7
+#define  SSB_LSB_W  8
 
 // audio definitions
 //  RX & TX audio input definitions
@@ -491,7 +496,7 @@ void loop()
 
     if (!digitalRead(ModeSW)) {
       if (modesw_state == 0) { // switch was pressed - falling edge
-        if (++mode > CWR) mode = SSB_USB; // cycle thru radio modes
+        if (++mode > SSB_LSB_W) mode = SSB_USB; // cycle thru radio modes
         setup_RX(mode);  // set up the audio chain for new mode
         modesw_state = 1; // flag switch is pressed
       }
@@ -533,34 +538,34 @@ void loop()
     else Bandsw_state = 0; // flag switch not pressed
   }
 
+  /*
+    // TX logic
+    // looks like the Teensy audio line outs have fixed levels
+    // that allows us to set sidetone levels separately which is really nice
+    // have to shift freq up by IF_FREQ on TX
+    // keyclicks - could ramp waveform in software.
 
-  // TX logic
-  // looks like the Teensy audio line outs have fixed levels
-  // that allows us to set sidetone levels separately which is really nice
-  // have to shift freq up by IF_FREQ on TX
-  // keyclicks - could ramp waveform in software.
-
-  PTT_in.update();  // check the PTT switch
-  if (!PTT_in.read())  // PTT switch is active, go into transmit mode
-  {
-    tft.setTextColor(RED);
-    tft.setCursor(75, 72);
-    tft.print("TX");
-    setup_TX(mode);  // set up the audio chain for transmit mode
-    // in TX mode we don't use an IF so we have to shift the TX frequency up by the IF frequency
-    //si5351.set_freq((unsigned long)(bands[band].freq+IF_FREQ)*MASTER_CLK_MULT, SI5351_PLL_FIXED, SI5351_CLK0);
-    delay(2); // short delay to allow things to settle
-    digitalWrite(PTTout, 1); // transmitter on
-    while ( !PTT_in.read()) { // wait for PTT release
-      PTT_in.update();  // check the PTT switch
-      if ((lcd_upd.check() == 1) && myFFT.available()) show_spectrum(); // only works in SSB mode
-    }
-    digitalWrite(PTTout, 0); // transmitter off
-    // restore the master clock to the RX frequency
-    //si5351.set_freq((unsigned long)bands[band].freq*MASTER_CLK_MULT, SI5351_PLL_FIXED, SI5351_CLK0);
-    setup_RX(mode);  // set up the audio chain for RX mode
-    tft.fillRect(75, 72, 11, 10, BLACK);// erase text
-  }
+    PTT_in.update();  // check the PTT switch
+    if (!PTT_in.read())  // PTT switch is active, go into transmit mode
+    {
+      tft.setTextColor(RED);
+      tft.setCursor(75, 72);
+      tft.print("TX");
+      setup_TX(mode);  // set up the audio chain for transmit mode
+      // in TX mode we don't use an IF so we have to shift the TX frequency up by the IF frequency
+      //si5351.set_freq((unsigned long)(bands[band].freq+IF_FREQ)*MASTER_CLK_MULT, SI5351_PLL_FIXED, SI5351_CLK0);
+      delay(2); // short delay to allow things to settle
+      digitalWrite(PTTout, 1); // transmitter on
+      while ( !PTT_in.read()) { // wait for PTT release
+        PTT_in.update();  // check the PTT switch
+        if ((lcd_upd.check() == 1) && myFFT.available()) show_spectrum(); // only works in SSB mode
+      }
+      digitalWrite(PTTout, 0); // transmitter off
+      // restore the master clock to the RX frequency
+      //si5351.set_freq((unsigned long)bands[band].freq*MASTER_CLK_MULT, SI5351_PLL_FIXED, SI5351_CLK0);
+      setup_RX(mode);  // set up the audio chain for RX mode
+      tft.fillRect(75, 72, 11, 10, BLACK);// erase text
+    }*/
 
 #ifdef SW_AGC
   agc();  // Automatic Gain Control function
@@ -623,6 +628,8 @@ void setup_RX(int mode)
 {
   AudioNoInterrupts();   // Disable Audio while reconfiguring filters
 
+  audioShield.adcHighPassFilterDisable();
+
   audioShield.inputSelect(inputRX); // RX mode uses line ins
   Audiochannelsetup(ROUTE_RX);   // switch audio path to RX processing chain
 
@@ -636,31 +643,62 @@ void setup_RX(int mode)
   Hilbert45_I.begin(RX_hilbertm45, HILBERT_COEFFS);
   Hilbert45_Q.begin(RX_hilbert45, HILBERT_COEFFS);
 
-  if ((mode == SSB_LSB) || (mode == CWR))             // LSB modes
+  if ((mode == SSB_LSB) || (mode == CWR) || (mode == SSB_LSB_W) || (mode == SSB_LSB_N))             // LSB modes
     FIR_BPF.begin(firbpf_lsb, BPF_COEFFS);      // 2.4kHz LSB filter
-  else FIR_BPF.begin(firbpf_usb, BPF_COEFFS);      // 2.4kHz USB filter
+
+  if ((mode == SSB_USB) || (mode == CW) || (mode == SSB_USB_W) || (mode == SSB_USB_N))
+    FIR_BPF.begin(firbpf_usb, BPF_COEFFS);      // 2.4kHz USB filter
+
+  if (mode == SSB_DSB)
+    FIR_BPF.begin(firbpf_dsb, BPF_COEFFS);
 
   switch (mode)	{
     case CWR:
       postFIR.begin(postfir_700, COEFF_700);    // 700 Hz LSB filter
       show_bandwidth(LSB_NARROW);
-      show_radiomode("CWR");
+      show_radiomode("CWR  ");
       break;
     case SSB_LSB:
       postFIR.begin(postfir_lpf, COEFF_LPF);    // 2.4kHz LSB filter
       show_bandwidth(LSB_WIDE);
-      show_radiomode("LSB");
+      show_radiomode("LSB  ");
       break;
     case CW:
       postFIR.begin(postfir_700, COEFF_700);    // 700 Hz LSB filter
       show_bandwidth(USB_NARROW);
-      show_radiomode("CW ");
+      show_radiomode("CW   ");
       break;
     case SSB_USB:
       postFIR.begin(postfir_lpf, COEFF_LPF);    // 2.4kHz LSB filter
       show_bandwidth(USB_WIDE);
-      show_radiomode("USB");
+      show_radiomode("USB  ");
       break;
+    case SSB_DSB:
+      postFIR.begin(postfir_3700hz, COEFF_3700);    // 2.4kHz LSB filter
+      show_bandwidth(DSB);
+      show_radiomode("DSB  ");
+      break;
+    case SSB_USB_N:
+      postFIR.begin(postfir_1700hz, COEFF_LPF);    // 1700HZ LSB filter
+      show_bandwidth(USB_1700);
+      show_radiomode("USB-N");
+      break;
+    case SSB_LSB_N:
+      postFIR.begin(postfir_1700hz, COEFF_LPF);    // 1700HZ LSB filter
+      show_bandwidth(LSB_1700);
+      show_radiomode("LSB-N");
+      break;
+    case SSB_USB_W:
+      postFIR.begin(postfir_3700hz, COEFF_3700);    // 3700HZ LSB filter
+      show_bandwidth(USB_3700);
+      show_radiomode("USB-W");
+      break;
+    case SSB_LSB_W:
+      postFIR.begin(postfir_3700hz, COEFF_3700);    // 3700HZ LSB filter
+      show_bandwidth(LSB_3700);
+      show_radiomode("LSB-W");
+      break;
+
   }
   AudioInterrupts();
 }
@@ -668,6 +706,9 @@ void setup_RX(int mode)
 // set up radio for TX modes - USB, LSB etc
 void setup_TX(int mode)
 {
+
+  return;
+
   AudioNoInterrupts();   // Disable Audio while reconfiguring filters
 
   FIR_BPF.end(); // turn off the BPF - IF filters are not used in TX mode

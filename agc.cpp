@@ -18,7 +18,7 @@ extern AudioAnalyzePeak       AGCpeak;  // Measure Audio Peak for AGC use
 extern AudioAnalyzePeak       Smeter;   // Measure Audio Peak for S meter
 
 Metro l_ms =   Metro(1);         // Set up a 1ms Metro
-Metro lcd_upd2 = Metro(200);     // Set up a Metro for LCD updates
+Metro lcd_upd2 = Metro(300);     // Set up a Metro for LCD updates
 
 float       sample[10];        // A ringbuffer of samples (has to be larger than AGCattack)
 
@@ -127,20 +127,20 @@ void agc(void)
           s_old = s_old - 0.5;
       }
       else
-      s_old = s;
+        s_old = s;
 
       for (int t = s_old + 1; t < 9; t++)
-        tft.fillRect(160 + t * 12, 220, 10, 20, BLACK);
+        tft.fillRect(210 + t * 12, 195, 10, 20, BLACK);
 
       for (int t = 1; t < s_old; t++)
       {
         if (t < 7)
         {
-          tft.fillRect(160 + t * 12, 239-t*2, 10, t*2, GREEN);
+          tft.fillRect(210 + t * 12, 209 - t * 2, 10, t * 2, GREEN);
 
         }
         else
-          tft.fillRect(160 + t * 12, 225, 10, 14, RED);
+          tft.fillRect(210 + t * 12, 195, 10, 14, RED);
       }
 
     }

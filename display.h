@@ -11,5 +11,11 @@
 #define  USB_NARROW  1
 #define  LSB_WIDE    2
 #define  LSB_NARROW  3
+#define  DSB         4
+#define  USB_3700    5  // filter modes
+#define  USB_1700    6
+#define  LSB_3700    7
+#define  LSB_1700    8
+
 
 
